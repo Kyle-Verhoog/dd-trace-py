@@ -1,5 +1,6 @@
 import collections
 from copy import deepcopy
+from typing import Dict, Set
 
 from .internal.logger import get_logger
 
@@ -20,7 +21,7 @@ class Hooks(object):
             pass
     """
 
-    _hooks = attr.ib(init=False, factory=lambda: collections.defaultdict(set))
+    _hooks = attr.ib(init=False, factory=lambda: collections.defaultdict(set))  # type: Dict[str, Set]
 
     def __deepcopy__(self, memodict=None):
         hooks = Hooks()

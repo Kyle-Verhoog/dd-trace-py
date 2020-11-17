@@ -3,6 +3,7 @@ import random
 import re
 import sys
 import textwrap
+from typing import Any, Callable
 
 from ddtrace.vendor import six
 
@@ -27,17 +28,17 @@ PYTHON_VERSION = platform.python_version()
 PYTHON_INTERPRETER = platform.python_implementation()
 
 try:
-    StringIO = six.moves.cStringIO
+    StringIO = six.moves.cStringIO  # type: ignore
 except ImportError:
     StringIO = six.StringIO
 
-httplib = six.moves.http_client
-urlencode = six.moves.urllib.parse.urlencode
-parse = six.moves.urllib.parse
-Queue = six.moves.queue.Queue
+httplib = six.moves.http_client  # type: ignore
+urlencode = six.moves.urllib.parse.urlencode  # type: ignore
+parse = six.moves.urllib.parse  # type: ignore
+Queue = six.moves.queue.Queue  # type: ignore
 iteritems = six.iteritems
 reraise = six.reraise
-reload_module = six.moves.reload_module
+reload_module = six.moves.reload_module  # type: ignore
 
 stringify = six.text_type
 string_type = six.string_types[0]
@@ -50,7 +51,7 @@ numeric_types = six.integer_types + (float,)
 if PYTHON_VERSION_INFO >= (3, 7):
     pattern_type = re.Pattern
 else:
-    pattern_type = re._pattern_type
+    pattern_type = re._pattern_type  # type: ignore
 
 
 def is_integer(obj):
@@ -69,6 +70,7 @@ except ImportError:
     from time import time as _time
 
     def time_ns():
+        # type: () -> int
         return int(_time() * 10e5) * 1000
 
 
@@ -83,15 +85,17 @@ try:
 except ImportError:
 
     def monotonic_ns():
+        # type: () -> int
         return int(monotonic() * 1e9)
 
 
 try:
     from time import process_time_ns
 except ImportError:
-    from time import clock as _process_time
+    from time import clock as _process_time  # type: ignore
 
     def process_time_ns():
+        # type: () -> int
         return int(_process_time() * 1e9)
 
 
@@ -142,9 +146,11 @@ else:
     # functions are used only to ensure code executions in case
     # of an unexpected behavior
     def iscoroutinefunction(fn):
+        # type: ignore
         return False
 
     def make_async_decorator(tracer, fn, *params, **kw_params):
+        # type: ignore
         return fn
 
 
@@ -189,7 +195,7 @@ def get_connection_response(conn):
 try:
     import contextvars  # noqa
 except ImportError:
-    from ddtrace.vendor import contextvars  # noqa
+    from ddtrace.vendor import contextvars  # type: ignore
 
     CONTEXTVARS_IS_AVAILABLE = False
 else:

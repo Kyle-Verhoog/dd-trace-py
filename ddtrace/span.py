@@ -1,7 +1,10 @@
 import math
 import sys
 import traceback
+from typing import Any, Dict, Optional, Union
 
+from .tracer import Tracer
+from .context import Context
 from .vendor import six
 from .compat import StringIO, stringify, iteritems, numeric_types, time_ns, is_integer
 from .constants import (
@@ -47,17 +50,17 @@ class Span(object):
 
     def __init__(
         self,
-        tracer,
-        name,
-        service=None,
-        resource=None,
-        span_type=None,
-        trace_id=None,
-        span_id=None,
-        parent_id=None,
-        start=None,
-        context=None,
-        _check_pid=True,
+        tracer,  # type: Tracer
+        name, # type: str
+        service=None, # type: Optional[str]
+        resource=None, # type: Optional[str]
+        span_type=None, # type: Optional[Union[str, SpanTypes]]
+        trace_id=None,  # type: Optional[int]
+        span_id=None,  # type: Optional[int]
+        parent_id=None,  # type: Optional[int]
+        start=None,  # type: Optional[int]
+        context=None, # type: Optional[Context]
+        _check_pid=True,  # type: bool
     ):
         """
         Create a new span. Call `finish` once the traced operation is over.
@@ -68,7 +71,7 @@ class Span(object):
 
         :param str service: the service name
         :param str resource: the resource name
-        :param str span_type: the span type
+        :param span_type: the span type
 
         :param int trace_id: the id of this trace's root span.
         :param int parent_id: the id of this span's direct parent span.
@@ -82,12 +85,12 @@ class Span(object):
         self.service = service
         self.resource = resource or name
         self._span_type = None
-        self.span_type = span_type
+        self.span_type = span_type # type: Any
 
         # tags / metadata
-        self.meta = {}
-        self.error = 0
-        self.metrics = {}
+        self.meta = {}  # type: Dict[str, str]
+        self.error = 0  # type: int
+        self.metrics = {}  # type: Dict[str, Union[int, float]]
 
         # timing
         self.start_ns = time_ns() if start is None else int(start * 1e9)
@@ -100,13 +103,14 @@ class Span(object):
         self.tracer = tracer
 
         # sampling
-        self.sampled = True
+        self.sampled = True  # type: bool
 
         self._context = context
-        self._parent = None
+        self._parent = None  # type: Optional[Span]
 
     @property
     def start(self):
+        # type: (...) -> float
         """The start timestamp in Unix epoch seconds."""
         return self.start_ns / 1e9
 
@@ -116,10 +120,14 @@ class Span(object):
 
     @property
     def span_type(self):
+        # type: (...) -> Any
         return self._span_type
 
     @span_type.setter
     def span_type(self, value):
+        # type: (Union[str, SpanTypes]) -> None
+        # Unfortunately we can't type this property due to
+        # https://github.com/python/mypy/issues/3004
         self._span_type = value.value if isinstance(value, SpanTypes) else value
 
     @property
@@ -178,6 +186,7 @@ class Span(object):
                         log.exception("error recording finished trace")
 
     def set_tag(self, key, value=None):
+        # (str, Any) -> None
         """Set a tag key/value pair on the span.
 
         Keys must be strings, values must be ``stringify``-able.

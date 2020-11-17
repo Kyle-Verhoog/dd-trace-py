@@ -1,4 +1,4 @@
-from .config import Config
+from ._config import Config
 from .exceptions import ConfigException
 from .http import HttpConfig
 from .._hooks import Hooks

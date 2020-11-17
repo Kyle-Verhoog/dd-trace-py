@@ -3,11 +3,12 @@ import logging
 import json
 from os import environ, getpid
 import sys
+from typing import Any, Optional, Union
 
 from ddtrace.vendor import debtcollector
 
 from .constants import FILTERS_KEY, SAMPLE_RATE_METRIC_KEY, VERSION_KEY, ENV_KEY
-from .ext import system
+from .ext import system, SpanTypes
 from .ext.priority import AUTO_REJECT, AUTO_KEEP
 from .internal import debug
 from .internal.logger import get_logger, hasHandlers
@@ -360,7 +361,14 @@ class Tracer(object):
                     msg = "- DATADOG TRACER DIAGNOSTIC - %s" % agent_error
                     self._log_compat(logging.WARNING, msg)
 
-    def start_span(self, name, child_of=None, service=None, resource=None, span_type=None):
+    def start_span(
+            self,
+            name,  # type: str
+            child_of=None,  # type: Optional[Union[Span, Context]]
+            service=None,  # type: Optional[str]
+            resource=None,  # type: Optional[str]
+            span_type=None,  # type: Optional[Union[str, SpanTypes]]
+        ):
         """
         Return a span that will trace an operation called `name`. This method allows
         parenting using the ``child_of`` kwarg. If it's missing, the newly created span is a
@@ -591,7 +599,13 @@ class Tracer(object):
         else:
             self.log.log(level, msg)
 
-    def trace(self, name, service=None, resource=None, span_type=None):
+    def trace(
+        self,
+        name,  # type: str
+        service=None,  # type: Optional[str]
+        resource=None,  # type: Optional[str]
+        span_type=None,  # type: Optional[Union[str, SpanTypes]]
+    ):
         """
         Return a span that will trace an operation called `name`. The context that created
         the span as well as the span parenting, are automatically handled by the tracing

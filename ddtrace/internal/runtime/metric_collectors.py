@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 from .collector import ValueCollector
 from .constants import (
@@ -16,7 +17,7 @@ from .constants import (
 
 
 class RuntimeMetricCollector(ValueCollector):
-    value = []
+    value = []  # type: List[str]
     periodic = True
 
 

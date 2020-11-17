@@ -1,10 +1,12 @@
 import logging
 import threading
+from typing import Optional, List
 
 from .constants import HOSTNAME_KEY, SAMPLING_PRIORITY_KEY, ORIGIN_KEY, LOG_SPAN_KEY
 from .internal.logger import get_logger
 from .internal import hostname
 from .settings import config
+from .span import Span
 from .utils.formats import asbool, get_env
 
 log = get_logger(__name__)
@@ -28,16 +30,22 @@ class Context(object):
     _partial_flush_enabled = asbool(get_env('tracer', 'partial_flush_enabled', default=False))
     _partial_flush_min_spans = int(get_env('tracer', 'partial_flush_min_spans', default=500))
 
-    def __init__(self, trace_id=None, span_id=None, sampling_priority=None, _dd_origin=None):
+    def __init__(
+        self,
+        trace_id=None,  # type: Optional[int]
+        span_id=None,  # type: Optional[int]
+        sampling_priority=None,  # type: Optional[float]
+        _dd_origin=None  # type: Optional[str]
+    ):
         """
         Initialize a new thread-safe ``Context``.
 
         :param int trace_id: trace_id of parent span
         :param int span_id: span_id of parent span
         """
-        self._trace = []
+        self._trace = []  # type: List[Span]
         self._finished_spans = 0
-        self._current_span = None
+        self._current_span = None  # type: Optional[Span]
         self._lock = threading.Lock()
 
         self._parent_trace_id = trace_id

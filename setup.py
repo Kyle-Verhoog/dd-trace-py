@@ -143,6 +143,7 @@ setup(
         long_description_content_type="text/markdown",
         license="BSD",
         packages=find_packages(exclude=["tests*"]),
+        package_data={"ddtrace": ["py.typed"]},
         python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*",
         # enum34 is an enum backport for earlier versions of python
         # funcsigs backport required for vendored debtcollector
@@ -152,6 +153,7 @@ setup(
             "protobuf>=3",
             "intervaltree",
             "tenacity>=5",
+            "typing; python_version<'3.5'",
         ],
         extras_require={
             # users can include opentracing by having:

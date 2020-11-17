@@ -40,6 +40,16 @@ suites = [
         ],
     ),
     Suite(
+        name="typecheck",
+        command="mypy ddtrace/",
+        cases=[
+            Case(
+                pys=[3.9],
+                pkgs=[("mypy", [""])],
+            ),
+        ],
+    ),
+    Suite(
         name="tracer",
         command="pytest tests/tracer/",
         cases=[
@@ -259,7 +269,14 @@ suites = [
             Case(
                 pys=[3.6, 3.7, 3.8, 3.9],
                 pkgs=[
-                    ("starlette", [">=0.13,<0.14", ">=0.14,<0.15", "",]),
+                    (
+                        "starlette",
+                        [
+                            ">=0.13,<0.14",
+                            ">=0.14,<0.15",
+                            "",
+                        ],
+                    ),
                     ("httpx", [""]),
                     ("pytest-asyncio", [""]),
                     ("requests", [""]),

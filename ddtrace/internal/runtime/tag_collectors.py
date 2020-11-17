@@ -1,3 +1,5 @@
+from typing import List
+
 from .collector import ValueCollector
 from .constants import (
     SERVICE,
@@ -11,7 +13,7 @@ from ...constants import ENV_KEY
 
 class RuntimeTagCollector(ValueCollector):
     periodic = False
-    value = []
+    value = []  # type: List[str]
 
 
 class TracerTagCollector(RuntimeTagCollector):
@@ -44,7 +46,7 @@ class PlatformTagCollector(RuntimeTagCollector):
 
     """
 
-    required_modules = ("platform", "ddtrace")
+    required_modules = ["platform", "ddtrace"]
 
     def collect_fn(self, keys):
         platform = self.modules.get("platform")
