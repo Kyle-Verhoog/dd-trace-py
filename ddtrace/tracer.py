@@ -4,6 +4,7 @@ import logging
 from os import environ
 from os import getpid
 import sys
+from typing import Callable
 
 from ddtrace import config
 
@@ -25,6 +26,7 @@ from .internal import hostname
 from .internal.dogstatsd import get_dogstatsd_client
 from .internal.logger import get_logger
 from .internal.logger import hasHandlers
+from .internal.processor import SpanProcessor
 from .internal.runtime import RuntimeWorker
 from .internal.runtime import get_runtime_id
 from .internal.writer import AgentWriter
@@ -55,6 +57,14 @@ if debug_mode and not hasHandlers(log):
 
 
 _INTERNAL_APPLICATION_SPAN_TYPES = {"custom", "template", "web", "worker"}
+
+
+def get_partial_flush_enabled():
+    return asbool(get_env("tracer", "partial_flush_enabled", default=False))
+
+
+def get_partial_flush_min_spans():
+    return int(get_env("tracer", "partial_flush_min_spans", default=500))
 
 
 class Tracer(object):
@@ -93,6 +103,8 @@ class Tracer(object):
         # traces
         self._pid = getpid()
 
+        self._hooks = _hooks.Hooks()
+
         self.enabled = asbool(get_env("trace", "enabled", default=True))
         self.context_provider = DefaultContextProvider()
         self.sampler = DatadogSampler()
@@ -112,9 +124,15 @@ class Tracer(object):
                 report_metrics=config.health_metrics_enabled,
             )
         self.writer = writer
-        self._hooks = _hooks.Hooks()
+        self.processor = SpanProcessor(
+            filters=[],
+            partial_flush_enabled=get_partial_flush_enabled(),
+            partial_flush_min_spans=get_partial_flush_min_spans(),
+        )
+        self.on_start_span(self.processor.on_span_start)
 
     def on_start_span(self, func):
+        # type: (Callable) -> (Callable)
         """Register a function to execute when a span start.
 
         Can be used as a decorator.
@@ -126,6 +144,7 @@ class Tracer(object):
         return func
 
     def deregister_on_start_span(self, func):
+        # type: (Callable) -> (Callable)
         """Unregister a function registered to execute when a span starts.
 
         Can be used as a decorator.
@@ -270,6 +289,12 @@ class Tracer(object):
             report_metrics=config.health_metrics_enabled,
         )
         self.writer.dogstatsd = get_dogstatsd_client(self._dogstatsd_url)
+        self.processor = SpanProcessor(
+            filters=self._filters,
+            partial_flush_enabled=get_partial_flush_enabled(),
+            partial_flush_min_spans=get_partial_flush_min_spans(),
+        )
+        self.on_start_span(self.processor.on_span_start)
 
         if context_provider is not None:
             self.context_provider = context_provider
@@ -462,8 +487,18 @@ class Tracer(object):
                 self._runtime_worker.update_runtime_tags()
 
         self._hooks.emit(self.__class__.start_span, span)
-
         return span
+
+    def _on_span_finish(self, span):
+        if not self.enabled:
+            return  # nothing to do
+
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("writing span %r", span)
+
+        spans = self.processor.on_span_finish(span)
+        if spans is not None:
+            self.writer.write(spans=spans)
 
     def _start_runtime_worker(self):
         if not self._dogstatsd_url:
@@ -492,9 +527,9 @@ class Tracer(object):
         # Also, note that because we're in a forked process, the lock that the
         # context has might be permanently locked so we can't use ctx.clone().
         new_ctx = Context(
-            sampling_priority=ctx._sampling_priority,
-            span_id=ctx._parent_span_id,
-            trace_id=ctx._parent_trace_id,
+            sampling_priority=ctx.sampling_priority,
+            span_id=ctx.span_id,
+            trace_id=ctx.trace_id,
         )
         self.context_provider.activate(new_ctx)
 
@@ -602,31 +637,6 @@ class Tracer(object):
         if ctx:
             return ctx.get_current_span()
         return None
-
-    def write(self, spans):
-        """
-        Send the trace to the writer to enqueue the spans list in the agent
-        sending queue.
-        """
-        if not spans:
-            return  # nothing to do
-
-        if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug("writing %s spans (enabled:%s)", len(spans), self.enabled)
-            for span in spans:
-                self.log.debug("\n%s", span.pprint())
-
-        if self.enabled and self.writer:
-            for filtr in self._filters:
-                try:
-                    spans = filtr.process_trace(spans)
-                except Exception:
-                    log.error("error while applying filter %s to traces", filtr, exc_info=True)
-                else:
-                    if not spans:
-                        return
-
-            self.writer.write(spans=spans)
 
     @deprecated(message="Manually setting service info is no longer necessary", version="1.0.0")
     def set_service_info(self, *args, **kwargs):

@@ -17,7 +17,6 @@ from ddtrace.constants import SPAN_MEASURED_KEY
 from ddtrace.encoding import JSONEncoder
 from ddtrace.ext import http
 from ddtrace.internal._encoding import MsgpackEncoder
-from ddtrace.internal.dogstatsd import get_dogstatsd_client
 from ddtrace.internal.writer import AgentWriter
 from ddtrace.vendor import wrapt
 from tests.subprocesstest import SubprocessTestCase
@@ -352,11 +351,11 @@ class TracerTestCase(TestSpanContainer, BaseTestCase):
 
     def get_spans(self):
         """Required subclass method for TestSpanContainer"""
-        return self.tracer.writer.spans
+        return self.tracer.spans
 
     def pop_spans(self):
         # type: () -> List[Span]
-        return self.tracer.pop()
+        return self.tracer.writer.pop()
 
     def pop_traces(self):
         # type: () -> List[List[Span]]
@@ -364,7 +363,7 @@ class TracerTestCase(TestSpanContainer, BaseTestCase):
 
     def reset(self):
         """Helper to reset the existing list of spans created"""
-        self.tracer.writer.pop()
+        self.tracer.pop()
 
     def trace(self, *args, **kwargs):
         """Wrapper for self.tracer.trace that returns a TestSpan"""
@@ -431,29 +430,16 @@ class DummyWriter(AgentWriter):
 
 
 class DummyTracer(Tracer):
-    """
-    DummyTracer is a tracer which uses the DummyWriter by default
-    """
-
     def __init__(self):
         super(DummyTracer, self).__init__()
         self._update_writer()
 
     def _update_writer(self):
-        # Track which writer the DummyWriter was created with, used
-        # some tests
-        if not isinstance(self.writer, DummyWriter):
-            self.original_writer = self.writer
-        if isinstance(self.writer, AgentWriter):
-            self.writer = DummyWriter(
-                agent_url=self.writer.agent_url,
-                priority_sampler=self.writer._priority_sampler,
-                dogstatsd=get_dogstatsd_client(self._dogstatsd_url),
-            )
-        else:
-            self.writer = DummyWriter(
-                priority_sampler=self.writer._priority_sampler,
-            )
+        self.writer = DummyWriter()
+
+    @property
+    def spans(self):
+        return self.writer.spans
 
     def pop(self):
         # type: () -> List[Span]
@@ -672,7 +658,7 @@ class TracerSpanContainer(TestSpanContainer):
         :returns: List of spans attached to this tracer
         :rtype: list
         """
-        return self.tracer.writer.spans
+        return self.tracer.spans
 
     def pop(self):
         return self.tracer.pop()

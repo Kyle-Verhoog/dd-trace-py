@@ -184,9 +184,8 @@ class Span(object):
             self.duration_ns = ft - (self.start_ns or ft)
 
         if self._context:
-            trace, sampled = self._context.close_span(self)
-            if self.tracer and trace and sampled:
-                self.tracer.write(trace)
+            self._context.close_span(self)
+            self.tracer._on_span_finish(self)
 
     def set_tag(self, key, value=None):
         """Set a tag key/value pair on the span.
